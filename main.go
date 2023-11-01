@@ -1,48 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"image"
-	"image/png"
 	"log"
+	"net"
+	"net/http"
 	"os"
 )
 
-func loadImage() (image.Image, error) {
-	f, err := os.Open("test.png")
-	if err != nil {
-		return nil, fmt.Errorf("open file: %w", err)
-	}
-	defer f.Close()
-
-	return png.Decode(f)
-}
 func main() {
-	img, err := loadImage()
-	if err != nil {
-		panic(err)
+	tepraAddress := os.Getenv("TEPRA_ADDRESS")
+	if tepraAddress == "" {
+		log.Fatal("TEPRA_ADDRESS is not specified")
 	}
-	tape := Tape{img}
-
-	f, err := os.Create("tcp-data.bin")
-	if err != nil {
-		panic(err)
+	if _, _, err := net.SplitHostPort(tepraAddress); err != nil {
+		log.Fatalf("TEPRA_ADDRESS is not a valid address: %v", err)
 	}
-	defer f.Close()
-	tape.writePrintRequest(f)
 
-	addr := os.Args[1]
-
-	s, err := getStatus(addr)
-	if err != nil {
-		panic(err)
+	listenAddress := os.Getenv("LISTEN_ADDRESS")
+	if listenAddress != "" {
+		log.Printf("LISTEN_ADDRESS is not specified")
 	}
-	log.Printf("Printing: %v", s.IsPrinting())
-	log.Printf("Idle: %v", s.IsIdle())
-	log.Printf("Type: %v", s.TapeType())
 
-	err = tape.Print(addr)
-	if err != nil {
-		panic(err)
+	s := &Server{
+		Address: tepraAddress,
 	}
+	log.Fatal(http.ListenAndServe(listenAddress, s))
 }

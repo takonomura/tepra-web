@@ -6,11 +6,20 @@
   <body>
     <fieldset>
       <label>
-        Height: <input type="number" value="128" id="height" name="height"> px
+        Tape:
+        <select id="height" name="height">
+          <option value="44">4 mm (44 px)</option>
+          <option value="72">6 mm (72 px)</option>
+          <option value="108" selected>9 mm (108 px)</option>
+          <option value="144">12 mm (144 px)</option>
+          <option value="216">18 mm (216 px)</option>
+          <option value="288">24 mm (288 px)</option>
+          <option value="384">36 mm (284 px)</option>
+        </select>
       </label>
       <br>
       <label>
-        Max Width: <input type="number" value="-1" id="width" name="width"> px
+        Max Length: <input type="number" value="-1" id="width" name="width"> px
       </label>
       <br>
       <label>
@@ -34,11 +43,17 @@
         Text:<br>
         <textarea id="text" name="text">test</textarea>
       </label>
+      <br>
+
+      <button id="print">印刷</button>
+      <span id="message"></span>
     </fieldset>
 
     <canvas id="canvas" style="border: 1px solid black; margin: 10px;"></canvas>
 
     <script>
+      const printElement = document.getElementById('print');
+      const messageElement = document.getElementById('message');
       const heightElement = document.getElementById('height');
       const widthElement = document.getElementById('width');
       const marginElement = document.getElementById('margin');
@@ -51,7 +66,7 @@
 
       function render() {
         const lines = textElement.value.split('\n');
-        const height = heightElement.valueAsNumber;
+        const height = Number(heightElement.value);
         const maxWidth = widthElement.valueAsNumber;
         const margin = marginElement.valueAsNumber;
         let verticalSpace = verticalElement.valueAsNumber;
@@ -82,6 +97,30 @@
         });
       }
 
+      async function print() {
+        if (printElement.disabled) return;
+        printElement.disabled = true;
+        messageElement.textContent = 'Printing...';
+
+        try {
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+          const form = new FormData();
+          form.append('tape', blob, 'tape.png');
+          const resp = await fetch('/print', {
+            method: 'POST',
+            body: form,
+          });
+          const response = await resp.json();
+
+          printElement.disabled = false;
+          messageElement.textContent = response.message;
+        } catch (e) {
+          console.error(e);
+          printElement.disabled = false;
+          messageElement.textContent = `failed to request: ${e}`;
+        }
+      }
+
       heightElement.addEventListener('input', render);
       widthElement.addEventListener('input', render);
       marginElement.addEventListener('input', render);
@@ -90,6 +129,8 @@
       fontElement.addEventListener('input', render);
       textElement.addEventListener('input', render);
       render();
+
+      printElement.addEventListener('click', print);
     </script>
   </body>
 </html>
