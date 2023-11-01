@@ -130,7 +130,7 @@ func (t Tape) Print(addr string) (err error) {
 	}
 	log.Printf("closed tcp")
 
-	//time.Sleep(500 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	printDeadline := time.Now().Add(printTimeout)
 	for {
