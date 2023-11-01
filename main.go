@@ -17,7 +17,7 @@ func main() {
 	}
 
 	listenAddress := os.Getenv("LISTEN_ADDRESS")
-	if listenAddress != "" {
+	if listenAddress == "" {
 		log.Printf("LISTEN_ADDRESS is not specified")
 	}
 
