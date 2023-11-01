@@ -10,6 +10,10 @@
       </label>
       <br>
       <label>
+        Max Width: <input type="number" value="-1" id="width" name="width"> px
+      </label>
+      <br>
+      <label>
         Line Margin: <input type="number" value="6" id="margin" name="margin"> px
       </label>
       <br>
@@ -36,6 +40,7 @@
 
     <script>
       const heightElement = document.getElementById('height');
+      const widthElement = document.getElementById('width');
       const marginElement = document.getElementById('margin');
       const verticalElement = document.getElementById('vertical');
       const horizontalElement = document.getElementById('horizontal');
@@ -47,16 +52,29 @@
       function render() {
         const lines = textElement.value.split('\n');
         const height = heightElement.valueAsNumber;
+        const maxWidth = widthElement.valueAsNumber;
         const margin = marginElement.valueAsNumber;
-        const verticalSpace = verticalElement.valueAsNumber;
+        let verticalSpace = verticalElement.valueAsNumber;
         const horizontalSpace = horizontalElement.valueAsNumber;
         const font = fontElement.value;
-        const fontSize = Math.floor((height - (lines.length-1)*margin - verticalSpace*2) / lines.length);
+        let fontSize = Math.floor((height - (lines.length-1)*margin - verticalSpace*2) / lines.length);
 
         canvas.height = height;
         ctx.font = `${fontSize}px ${font}`;
         canvas.width = horizontalSpace*2 + Math.ceil(Math.max(...lines.map(s => ctx.measureText(s).width)));
         ctx.font = `${fontSize}px ${font}`;
+        if (maxWidth > 0 && canvas.width > maxWidth) {
+          canvas.width = maxWidth;
+          while (fontSize > 0) {
+            fontSize--;
+            ctx.font = `${fontSize}px ${font}`;
+            const measured = horizontalSpace*2 + Math.ceil(Math.max(...lines.map(s => ctx.measureText(s).width)));
+            if (measured <= maxWidth) {
+              break;
+            }
+          }
+          verticalSpace = Math.floor((height - lines.length*fontSize - (lines.length-1)*margin) / 2);
+        }
         ctx.textBaseline = 'top';
 
         lines.forEach((text, i) => {
@@ -65,6 +83,7 @@
       }
 
       heightElement.addEventListener('input', render);
+      widthElement.addEventListener('input', render);
       marginElement.addEventListener('input', render);
       verticalElement.addEventListener('input', render);
       horizontalElement.addEventListener('input', render);
