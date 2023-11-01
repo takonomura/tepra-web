@@ -10,11 +10,15 @@
       </label>
       <br>
       <label>
-        Margin: <input type="number" value="2" id="margin" name="margin"> px
+        Line Margin: <input type="number" value="6" id="margin" name="margin"> px
       </label>
       <br>
       <label>
-        Space: <input type="number" value="10" id="space" name="space"> px
+        Vertical Space: <input type="number" value="12" id="vertical" name="vertical"> px
+      </label>
+      <br>
+      <label>
+        Horizontal Space: <input type="number" value="10" id="horizontal" name="horizontal"> px
       </label>
       <br>
       <label>
@@ -33,7 +37,8 @@
     <script>
       const heightElement = document.getElementById('height');
       const marginElement = document.getElementById('margin');
-      const spaceElement = document.getElementById('space');
+      const verticalElement = document.getElementById('vertical');
+      const horizontalElement = document.getElementById('horizontal');
       const fontElement = document.getElementById('font');
       const textElement = document.getElementById('text');
       const canvas = document.getElementById('canvas');
@@ -43,24 +48,26 @@
         const lines = textElement.value.split('\n');
         const height = heightElement.valueAsNumber;
         const margin = marginElement.valueAsNumber;
-        const space = spaceElement.valueAsNumber;
+        const verticalSpace = verticalElement.valueAsNumber;
+        const horizontalSpace = horizontalElement.valueAsNumber;
         const font = fontElement.value;
-        const fontSize = Math.floor((height - (lines.length+1)*margin) / lines.length);
+        const fontSize = Math.floor((height - (lines.length-1)*margin - verticalSpace*2) / lines.length);
 
         canvas.height = height;
         ctx.font = `${fontSize}px ${font}`;
-        canvas.width = space*2 + Math.ceil(Math.max(...lines.map(s => ctx.measureText(s).width)));
+        canvas.width = horizontalSpace*2 + Math.ceil(Math.max(...lines.map(s => ctx.measureText(s).width)));
         ctx.font = `${fontSize}px ${font}`;
         ctx.textBaseline = 'top';
 
         lines.forEach((text, i) => {
-          ctx.fillText(text, space, (i+1)*margin + i*fontSize);
+          ctx.fillText(text, horizontalSpace, verticalSpace + (i+1)*margin + i*fontSize);
         });
       }
 
       heightElement.addEventListener('input', render);
       marginElement.addEventListener('input', render);
-      spaceElement.addEventListener('input', render);
+      verticalElement.addEventListener('input', render);
+      horizontalElement.addEventListener('input', render);
       fontElement.addEventListener('input', render);
       textElement.addEventListener('input', render);
       render();
