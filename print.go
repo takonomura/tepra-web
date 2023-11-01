@@ -4,44 +4,28 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"image"
 	"io"
 	"log"
 	"net"
 	"time"
 )
 
-type Tape struct {
-	image.Image
-}
-
-func (t Tape) Height() uint16 {
-	return uint16(t.Bounds().Max.Y)
-}
-
-func (t Tape) Width() uint32 {
-	return uint32(t.Bounds().Max.X)
-}
-
-func (t Tape) getPixel(x uint32, y uint16) byte {
-	r, g, b, a := t.At(int(x), int(y)).RGBA()
-	if r == 0 && g == 0 && b == 0 && a > 0 {
-		return 0x01
-	} else {
-		return 0x00
-	}
-}
+var (
+	tcpDialTimeout  = 1 * time.Second
+	tcpWriteTimeout = 5 * time.Second
+	printTimeout    = 30 * time.Second
+)
 
 func (t Tape) writeImage(w io.Writer) {
-	bytes := (t.Height() + 7) / 8
-	for x := t.Width() - 1; x >= 0; x-- {
+	bytes := (t.Width() + 7) / 8
+	for x := t.Length() - 1; x >= 0; x-- {
 		w.Write([]byte{0x1b, 0x2e, 0x00, 0x00, 0x00, 0x01})
-		binary.Write(w, binary.LittleEndian, t.Height())
+		binary.Write(w, binary.LittleEndian, t.Width())
 		for i := uint16(0); i < bytes; i++ {
 			var b byte
 			for j := uint16(0); j < 8; j++ {
 				y := i*8 + j
-				if y < t.Height() {
+				if y < t.Width() {
 					b |= t.getPixel(x, y)
 				}
 				if j < 7 {
@@ -81,7 +65,7 @@ func (t Tape) writePrintRequest(w io.Writer) {
 	w.Write([]byte{0x1b, 0x7b, 0x07, 0x43, 0x02, 0x02, 0x01, 0x01, 0x49, 0x7d})
 	w.Write([]byte{0x1b, 0x7b, 0x04, 0x44, 0x05, 0x49, 0x7d})
 	w.Write([]byte{0x1b, 0x7b, 0x03, 0x47, 0x47, 0x7d})
-	b := createSetTapeWidthPacket(t.Width() + 4)
+	b := createSetTapeWidthPacket(t.Length() + 4)
 	w.Write(b[:])
 	w.Write([]byte{0x1b, 0x7b, 0x05, 0x54, 0x2a, 0x00, 0x7e, 0x7d})
 	w.Write([]byte{0x1b, 0x7b, 0x04, 0x48, 0x05, 0x4d, 0x7d})
@@ -96,7 +80,7 @@ func (t Tape) buildPrintRequest() *bytes.Buffer {
 	return b
 }
 
-func (t Tape) Print(addr string) error {
+func (t Tape) Print(addr string) (err error) {
 	s, err := getStatus(addr)
 	if err != nil {
 		return fmt.Errorf("checking status: %w", err)
@@ -105,56 +89,67 @@ func (t Tape) Print(addr string) error {
 	if !s.IsIdle() {
 		return fmt.Errorf("not idle: %x", s)
 	}
+	if s.TapeType().Width() < t.Width() {
+		return fmt.Errorf("print width is longer than %d (got %d)", s.TapeType().Width(), t.Width())
+	}
 
 	if err := lockPrinter(addr); err != nil {
 		return fmt.Errorf("requesting lock: %w", err)
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	//time.Sleep(500 * time.Millisecond)
 
 	log.Printf("connecting tcp")
-	c, err := net.Dial("tcp4", addr)
+	c, err := net.DialTimeout("tcp4", addr, tcpDialTimeout)
 	if err != nil {
 		return fmt.Errorf("connecting tcp: %w", err)
 	}
 	log.Printf("connected")
-	time.Sleep(500 * time.Millisecond)
+
+	//time.Sleep(500 * time.Millisecond)
 
 	if err := startPrint(addr); err != nil {
 		return fmt.Errorf("requesting start: %w", err)
 	}
-	time.Sleep(500 * time.Millisecond)
+
+	//time.Sleep(500 * time.Millisecond)
+
 	log.Printf("sending print: %x", t.buildPrintRequest().Bytes())
+	c.SetWriteDeadline(time.Now().Add(tcpWriteTimeout))
 	if _, err := t.buildPrintRequest().WriteTo(c); err != nil {
 		c.Close()
 		return fmt.Errorf("writing print data: %w", err)
 	}
-	time.Sleep(500 * time.Millisecond)
+	log.Printf("sended print data")
+
+	//time.Sleep(500 * time.Millisecond)
+
 	log.Printf("closing tcp")
 	if err := c.Close(); err != nil {
 		return fmt.Errorf("closing tcp: %w", err)
 	}
-	time.Sleep(500 * time.Millisecond)
+	log.Printf("closed tcp")
 
-	if err := startPrint2(addr); err != nil {
-		return fmt.Errorf("requesting start2: %w", err)
-	}
-	time.Sleep(500 * time.Millisecond)
+	//time.Sleep(500 * time.Millisecond)
 
-	for { // TODO: Set timeout
+	printDeadline := time.Now().Add(printTimeout)
+	for {
+		if time.Now().After(printDeadline) {
+			return fmt.Errorf("print take too long time")
+		}
+		time.Sleep(100 * time.Millisecond)
 		s, err := getStatus(addr)
 		if err != nil {
 			return fmt.Errorf("waiting print finish: %w", err)
 		}
-		time.Sleep(500 * time.Millisecond)
 		if !s.IsPrinting() {
 			break
 		}
 	}
 
-	//if err := unlockPrinter(addr); err != nil {
-	//        return fmt.Errorf("requesting unlock: %w", err)
-	//}
+	if err := unlockPrinter(addr); err != nil {
+		return fmt.Errorf("requesting unlock: %w", err)
+	}
 
 	return nil
 }
