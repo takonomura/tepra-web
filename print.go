@@ -43,8 +43,8 @@ func (t Tape) writeImage(w io.Writer) {
 
 func createSetTapeWidthPacket(width uint32) (b [10]byte) {
 	b[0], b[1] = 0x1b, 0x7b
-	b[2] = 0x07 // length
-	b[3] = 0x4c // 76
+	b[2] = 0x07
+	b[3] = 0x4c
 
 	binary.LittleEndian.PutUint32(b[4:8], width)
 
@@ -97,8 +97,6 @@ func (t Tape) Print(addr string) (err error) {
 		return fmt.Errorf("requesting lock: %w", err)
 	}
 
-	//time.Sleep(500 * time.Millisecond)
-
 	log.Printf("connecting tcp")
 	c, err := net.DialTimeout("tcp4", addr, tcpDialTimeout)
 	if err != nil {
@@ -106,13 +104,9 @@ func (t Tape) Print(addr string) (err error) {
 	}
 	log.Printf("connected")
 
-	//time.Sleep(500 * time.Millisecond)
-
 	if err := startPrint(addr); err != nil {
 		return fmt.Errorf("requesting start: %w", err)
 	}
-
-	//time.Sleep(500 * time.Millisecond)
 
 	log.Printf("sending print: %x", t.buildPrintRequest().Bytes())
 	c.SetWriteDeadline(time.Now().Add(tcpWriteTimeout))
@@ -121,8 +115,6 @@ func (t Tape) Print(addr string) (err error) {
 		return fmt.Errorf("writing print data: %w", err)
 	}
 	log.Printf("sended print data")
-
-	//time.Sleep(500 * time.Millisecond)
 
 	log.Printf("closing tcp")
 	if err := c.Close(); err != nil {

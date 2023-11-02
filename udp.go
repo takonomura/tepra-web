@@ -115,15 +115,3 @@ func startPrint(addr string) error {
 	}
 	return nil
 }
-
-//func startPrint2(addr string) error {
-//        req := make([]byte, headerSize)
-//        putUDPHeader(req, 0x0100, 0)
-//        log.Printf("sending start request2: %x", req)
-//        resp, err := doUDP(addr, req)
-//        if err != nil {
-//                return err
-//        }
-//        log.Printf("received response for start request2: %x", resp)
-//        return nil
-//}
